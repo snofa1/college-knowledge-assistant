@@ -2,19 +2,22 @@ import os
 import time
 from uuid import uuid4
 
-import faiss
 from dotenv import load_dotenv
 from pypdf import PdfReader
-from sentence_transformers import SentenceTransformer
 from google import genai
 from google.genai import errors
 
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
 
-# ==========================================
-# 1. LOAD GEMINI API KEY
-# ==========================================
 
 load_dotenv()
+
+# -----------------------------
+# Gemini Configuration
+# -----------------------------
 
 api_key = os.getenv("GEMINI_API_KEY")
 
@@ -26,29 +29,34 @@ if not api_key:
 
 client = genai.Client(api_key=api_key)
 
+# -----------------------------
+# Embedding Model
+# -----------------------------
 
-# ==========================================
-# 2. LOAD EMBEDDING MODEL
-# ==========================================
+embedding_model = None
 
-embedding_model = SentenceTransformer(
-    "all-MiniLM-L6-v2"
-)
+def get_embedding_model():
+    global embedding_model
 
+    if embedding_model is None:
+        embedding_model = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
 
-# ==========================================
-# 3. TEMPORARY DOCUMENT STORAGE
-# ==========================================
+    return embedding_model
+
+# -----------------------------
+# Document Storage
+# -----------------------------
 
 documents = {}
 
 
-# ==========================================
-# 4. EXTRACT TEXT FROM PDF
-# ==========================================
+# -----------------------------
+# PDF Extraction
+# -----------------------------
 
 def extract_pages_from_pdf(file):
-
     reader = PdfReader(file)
 
     pages = []
@@ -57,108 +65,65 @@ def extract_pages_from_pdf(file):
         reader.pages,
         start=1
     ):
-
         page_text = page.extract_text()
 
         if page_text and page_text.strip():
-
-            pages.append({
-                "page": page_number,
-                "text": page_text
-            })
+            pages.append(
+                Document(
+                    page_content=page_text.strip(),
+                    metadata={
+                        "page": page_number
+                    }
+                )
+            )
 
     return pages
 
 
-# ==========================================
-# 5. CREATE TEXT CHUNKS
-# ==========================================
+# -----------------------------
+# LangChain Text Splitting
+# -----------------------------
 
-def create_chunks(pages, chunk_size=800, overlap=100):
-    chunks = []
+def create_chunks(pages):
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=800,
+        chunk_overlap=100,
+        separators=[
+            "\n\n",
+            "\n",
+            ". ",
+            " ",
+            ""
+        ]
+    )
 
-    for page_data in pages:
-        text = page_data["text"].strip()
-        page_number = page_data["page"]
-
-        # Split text into sentences
-        sentences = text.replace("\n", " ").split(". ")
-
-        current_chunk = ""
-
-        for sentence in sentences:
-            sentence = sentence.strip()
-
-            if not sentence:
-                continue
-
-            # Add the period back if it was removed by split
-            if not sentence.endswith("."):
-                sentence += "."
-
-            # Check whether adding the next sentence exceeds the chunk size
-            if (
-                len(current_chunk) + len(sentence) + 1
-                <= chunk_size
-            ):
-                current_chunk += (
-                    sentence + " "
-                )
-
-            else:
-                if current_chunk.strip():
-                    chunks.append({
-                        "text": current_chunk.strip(),
-                        "page": page_number
-                    })
-
-                # Start a new chunk
-                current_chunk = sentence + " "
-
-        # Add remaining text
-        if current_chunk.strip():
-            chunks.append({
-                "text": current_chunk.strip(),
-                "page": page_number
-            })
+    chunks = text_splitter.split_documents(pages)
 
     return chunks
 
-# ==========================================
-# 6. CREATE FAISS VECTOR INDEX
-# ==========================================
+
+# -----------------------------
+# Create FAISS Vector Store
+# -----------------------------
 
 def create_vector_database(chunks):
-
-    texts = [
-        chunk["text"]
-        for chunk in chunks
-    ]
-
-    embeddings = embedding_model.encode(
-        texts,
-        convert_to_numpy=True
+    vector_store = FAISS.from_documents(
+        chunks,
+        get_embedding_model()
     )
 
-    dimension = embeddings.shape[1]
-
-    index = faiss.IndexFlatL2(dimension)
-
-    index.add(embeddings)
-
-    return index
+    return vector_store
 
 
-# ==========================================
-# 7. PROCESS PDF
-# ==========================================
+# -----------------------------
+# Process PDF
+# -----------------------------
 
 def process_document(file, filename):
 
     pages = extract_pages_from_pdf(file)
 
     if not pages:
-
         raise ValueError(
             "No readable text was found in this PDF."
         )
@@ -166,19 +131,18 @@ def process_document(file, filename):
     chunks = create_chunks(pages)
 
     if not chunks:
-
         raise ValueError(
             "Could not create text chunks from this PDF."
         )
 
-    index = create_vector_database(chunks)
+    vector_store = create_vector_database(chunks)
 
     document_id = str(uuid4())
 
     documents[document_id] = {
         "filename": filename,
         "chunks": chunks,
-        "index": index
+        "vector_store": vector_store
     }
 
     return {
@@ -188,43 +152,27 @@ def process_document(file, filename):
     }
 
 
-# ==========================================
-# 8. RETRIEVE RELEVANT CHUNKS
-# ==========================================
+# -----------------------------
+# Retrieve Relevant Chunks
+# -----------------------------
 
 def retrieve_chunks(
     question,
-    chunks,
-    index,
+    vector_store,
     top_k=3
 ):
 
-    question_embedding = embedding_model.encode(
-        [question],
-        convert_to_numpy=True
+    retrieved_documents = vector_store.similarity_search(
+        question,
+        k=top_k
     )
 
-    distances, indices = index.search(
-        question_embedding,
-        min(top_k, len(chunks))
-    )
-
-    retrieved_chunks = []
-
-    for index_number in indices[0]:
-
-        if index_number >= 0:
-
-            retrieved_chunks.append(
-                chunks[index_number]
-            )
-
-    return retrieved_chunks
+    return retrieved_documents
 
 
-# ==========================================
-# 9. GENERATE ANSWER USING GEMINI
-# ==========================================
+# -----------------------------
+# Gemini Answer Generation
+# -----------------------------
 
 def generate_answer(
     question,
@@ -232,14 +180,15 @@ def generate_answer(
 ):
 
     context = "\n\n".join(
-        chunk["text"]
-        for chunk in retrieved_chunks
+        document.page_content
+        for document in retrieved_chunks
     )
 
     prompt = f"""
 Answer the question using ONLY the context below.
 
 If the answer is not present in the context, say:
+
 "I could not find the answer in the provided PDF."
 
 Context:
@@ -278,9 +227,9 @@ Question:
                 )
 
 
-# ==========================================
-# 10. ASK QUESTION ABOUT DOCUMENT
-# ==========================================
+# -----------------------------
+# Question Answering
+# -----------------------------
 
 def ask_question(
     document_id,
@@ -296,13 +245,11 @@ def ask_question(
 
     document = documents[document_id]
 
-    chunks = document["chunks"]
-    index = document["index"]
+    vector_store = document["vector_store"]
 
     retrieved_chunks = retrieve_chunks(
         question,
-        chunks,
-        index,
+        vector_store,
         top_k
     )
 
@@ -315,10 +262,15 @@ def ask_question(
 
     for chunk in retrieved_chunks:
 
-        sources.append({
-            "page": chunk["page"],
-            "text": chunk["text"]
-        })
+        sources.append(
+            {
+                "page": chunk.metadata.get(
+                    "page",
+                    "Unknown"
+                ),
+                "text": chunk.page_content
+            }
+        )
 
     return {
         "answer": answer,
