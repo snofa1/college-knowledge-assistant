@@ -1,201 +1,231 @@
-# College Knowledge Assistant — RAG-Based PDF Question Answering
-https://college-knowledge-assistant-1-74hg.onrender.com- URL
+# 📚 College Knowledge Assistant
 
-A Retrieval-Augmented Generation (RAG) application that allows users to ask questions about college documents in natural language and receive answers grounded in the content of uploaded PDFs.
+A web-based PDF question-answering application built using **Retrieval-Augmented Generation (RAG)**. Users can upload a PDF, ask questions about its contents, receive answers grounded in the document, and inspect the source text and page numbers.
 
-Built using **Python, LangChain, FastAPI, Streamlit, FAISS, Sentence Transformers, and Google Gemini**.
+## 🚀 Live Demo
 
-## Overview
+**Live Application:** [College Knowledge Assistant](https://college-knowledge-assistant-1-74hg.onrender.com)
 
-College documents often contain important information about attendance requirements, examinations, assignments, and institutional policies. Finding specific details in lengthy PDFs can be time-consuming.
+## ✨ Features
 
-The College Knowledge Assistant simplifies this process by extracting text from PDF documents, splitting it into smaller chunks, retrieving relevant passages using semantic similarity search, and using Google Gemini to generate context-aware answers.
+- **PDF Upload:** Upload PDF documents through a Streamlit interface.
+- **Text Extraction:** Extract readable text from PDF pages using PyPDF.
+- **Text Chunking:** Split document text into overlapping chunks using LangChain text splitters.
+- **Gemini Embeddings:** Generate document and query embeddings using Google's `gemini-embedding-001` model.
+- **Semantic Search:** Use FAISS to retrieve text chunks relevant to a user's question.
+- **AI-Powered Answers:** Generate context-based responses using Google's Gemini model.
+- **Source References:** Display retrieved text and corresponding PDF page numbers.
+- **Unsupported Question Handling:** Instruct the model to indicate when the answer cannot be found in the provided PDF.
+- **Separate Frontend and Backend:** Use Streamlit for the interface and FastAPI for document processing and question answering.
 
-## Key Features
+## 🛠️ Tech Stack
 
-- **PDF-based question answering:** Ask questions about uploaded PDF documents in natural language.
-- **Retrieval-Augmented Generation (RAG):** Retrieve relevant document passages before generating answers.
-- **LangChain integration:** Use document objects, text splitting, embedding integration, and vector store functionality.
-- **Semantic search:** Generate text embeddings with Sentence Transformers and retrieve similar passages using FAISS.
-- **Context-grounded responses:** Instruct the language model to answer using the retrieved document context.
-- **Source references:** Display relevant source passages and page metadata alongside answers.
-- **Separate frontend and backend:** Streamlit provides the user interface, while FastAPI exposes the question-answering API.
-- **API key protection:** Load the Gemini API key from an environment variable rather than hardcoding it in application code.
+| Technology             | Purpose                                                        |
+| ---------------------- | -------------------------------------------------------------- |
+| Python                 | Application logic                                              |
+| Streamlit              | Web frontend                                                   |
+| FastAPI                | Backend API                                                    |
+| Google Gemini API      | Embeddings and answer generation                               |
+| gemini-embedding-001  | Semantic embeddings                                            |
+| FAISS                  | Vector similarity search                                       |
+| LangChain              | Document objects, text splitting, and vector-store integration |
+| PyPDF                  | PDF text extraction                                            |
+| Requests               | Frontend-to-backend HTTP communication                         |
+| Render                 | Application deployment                                         |
+| Git and GitHub         | Version control and source hosting                             |
 
-   Architecture
+## 🏗️ Architecture
+
+text
+                  User
+                   |
+                   v
+          Streamlit Frontend
+                   |
+                   | HTTP requests
+                   v
+             FastAPI Backend
+                   |
+          +--------+---------+
+          |                  |
+          v                  v
+     PDF Extraction     User Question
+       (PyPDF)                |
+          |                  v
+          v          Gemini Query Embedding
+     Text Chunking             |
+          |                    |
+          v                    |
+ Gemini Document Embeddings    |
+          |                    |
+          v                    |
+       FAISS Vector Store <----+
+          |
+          v
+    Relevant Text Chunks
+          |
+          v
+    Gemini Answer Generation
+          |
+          v
+   Answer + Source References
+          |
+          v
+     Streamlit Frontend
 
 
-             User
-              |
-              v
-      Streamlit Frontend
-           (app.py)
-              |
-              v
-       FastAPI Backend
-           (api.py)
-              |
-              v
-        RAG Service
-      (rag_service.py)
-              |
-      +-------+--------+
-      |                |
-      v                v
-  PDF Extraction   Text Chunking
-      |                |
-      +-------+--------+
-              |
-              v
-     Sentence Transformers
-       Text Embeddings
-              |
-              v
-       FAISS Vector Store
-              |
-              v
-    Retrieve Relevant Chunks
-              |
-              v
-       Google Gemini API
-              |
-              v
-     Answer + Source Passages
-              |
-              v
-       Streamlit Frontend
+## 🔄 How It Works
 
-## Tech Stack
+1. The user uploads a PDF through the Streamlit frontend.
+2. The FastAPI backend extracts readable text and preserves page metadata.
+3. LangChain splits the extracted text into chunks with overlap.
+4. Gemini generates embeddings for the document chunks.
+5. FAISS stores the embeddings and supports similarity-based retrieval.
+6. When the user asks a question, Gemini generates a query embedding and FAISS retrieves relevant chunks.
+7. The retrieved context is passed to Gemini for answer generation.
+8. The application displays the answer and retrieved source text with page numbers.
 
-| Category             | Technologies                     |
-| -------------------- | -------------------------------- |
-| Language             | Python                           |
-| Frontend             | Streamlit                        |
-| Backend API          | FastAPI, Uvicorn                 |
-| RAG Framework        | LangChain                        |
-| PDF Processing       | PyPDF                            |
-| Embeddings           | Sentence Transformers            |
-| Vector Database      | FAISS                            |
-| LLM                  | Google Gemini                    |
-| Supporting Libraries | PyTorch, Requests, python-dotenv |
+## 📁 Project Structure
 
-## How It Works
-
-1. The user uploads a PDF document through the Streamlit interface.
-2. PyPDF extracts text and page information from the document.
-3. LangChain's `RecursiveCharacterTextSplitter` divides the text into manageable chunks with overlap.
-4. Sentence Transformers converts the chunks into vector embeddings.
-5. FAISS indexes the embeddings for similarity-based retrieval.
-6. When the user asks a question, the system retrieves the most relevant chunks.
-7. The retrieved context is passed to Google Gemini with instructions to answer based on the provided document content.
-8. The frontend displays the generated answer and relevant source passages.
-
-## Project Structure
-## Project Structure
 
 college-knowledge-assistant/
 ├── app.py              # Streamlit frontend
 ├── api.py              # FastAPI backend and API endpoints
-├── rag_service.py      # PDF processing, retrieval, and generation
+├── rag_service.py      # PDF processing, embeddings, retrieval, and answers
 ├── requirements.txt    # Python dependencies
-├── .gitignore          # Excludes secrets and generated files
+├── .gitignore          # Files excluded from Git
+└── README.md           # Project documentation
+
+
+The `.env` file is created locally and is not committed to GitHub.
+
+## ⚙️ Local Setup
 
 ### Prerequisites
 
-- Python 3.10 or a compatible version supported by your installed dependencies
+- Python 3.10 or a compatible version supported by your dependencies
 - A Google Gemini API key
 - Git
 
 ### 1. Clone the repository
 
+
 git clone https://github.com/snofa1/college-knowledge-assistant.git
 cd college-knowledge-assistant
 
-2. Create and activate a virtual environment
+
+### 2. Create and activate a virtual environment
 
 Windows PowerShell:
+
 
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 
- 3. Install dependencies
 
-python -m pip install --upgrade pip
+### 3. Install dependencies
+
+
 pip install -r requirements.txt
 
- 4. Configure the Gemini API key
+
+### 4. Configure the Gemini API key
 
 Create a `.env` file in the project root:
 
-GEMINI_API_KEY=your_gemini_api_key_here
 
-Replace the placeholder with your own API key.
+GEMINI_API_KEY=your_gemini_api_key
 
-**Security:** Never commit `.env` or expose your API key in source code, screenshots, or public repositories.
 
- 5. Start the FastAPI backend
+Replace the placeholder with your own key. Never commit `.env` or share your API key publicly.
 
-Open a terminal in the project directory and run:
+### 5. Start the FastAPI backend
+
+
 uvicorn api:app --reload
 
-The backend will normally be available at:
 
-- API base URL: `http://127.0.0.1:8000`
-- Health check: `http://127.0.0.1:8000/health`
-- Interactive API documentation: `http://127.0.0.1:8000/docs`
+The backend runs locally at:
 
-Keep this terminal running.
+http://127.0.0.1:8000
 
- 6. Start the Streamlit frontend
+Open the interactive API documentation:
 
-Open a second terminal, activate the same virtual environment, and run:
+http://127.0.0.1:8000/docs
+
+### 6. Start the Streamlit frontend
+
+In a second terminal, activate the virtual environment and run:
+
 
 streamlit run app.py
 
-Open the local URL printed in the terminal, usually `http://localhost:8501`.
 
-## API Endpoints
+The frontend is usually available at:
 
-The FastAPI backend provides endpoints for application health and question answering.
+http://localhost:8501
 
-| Endpoint      | Purpose                                                         |
-| ------------- | --------------------------------------------------------------- |
-| GET /         | Basic API information                                           |
-| GET /health   | Health check                                                    |
-| POST /ask     | Submit a question and receive an answer with source information |
+**Note:** The current `app.py` is configured to call the deployed Render backend. To use a local backend instead, change `API_URL` to `http://127.0.0.1:8000`.
 
-For the exact request fields and response schema, start the backend and visit `http://127.0.0.1:8000/docs`.
+## 🔌 API Endpoints
 
- **Testing**
+The deployed backend exposes these application endpoints:
 
-The application has been manually tested with questions about information contained in a sample PDF, including attendance requirements and examination weightage.
+| Endpoint            | Method | Purpose                               |
+| ------------------- | ------ | ------------------------------------- |
+| /                   | GET    | Check API status                      |
+| /documents/upload   | POST   | Upload and process a PDF              |
+| /chat               | POST   | Ask a question about an uploaded PDF  |
+| /docs               | GET    | Interactive Swagger API documentation |
 
-Testing also included asking a question whose answer was absent from the document to check whether the application could respond that the information could not be found.
+Use the live [API documentation](https://college-knowledge-assistant-g4hz.onrender.com/docs) to inspect request fields and response schemas.
 
-These are manual functional checks; a formal automated RAG evaluation suite has not yet been implemented.
+## 🧪 Testing
 
-## Current Limitations
+The application was manually tested using a sample PDF with known content.
 
-- Text extraction is intended for PDFs containing selectable text; scanned documents may require OCR.
-- Answer quality depends on document quality, chunking, retrieval relevance, and the language model.
-- The application uses a limited number of retrieved chunks, which may omit relevant information in some cases.
-- Gemini API access requires internet connectivity and a valid API key.
-- The model may still produce inaccurate responses, so important information should be checked against the source document.
-- Vector indexes are created during processing and are not currently configured for persistent storage across application restarts.
+**Supported question example**
 
-## Future Improvements
+Question: *What is the minimum attendance required for the end-semester examination?*
 
-- Add automated evaluation for retrieval relevance, answer correctness, and groundedness.
-- Improve citations with more precise source attribution.
-- Add persistent vector storage and document reuse.
-- Support scanned PDFs using OCR.
-- Improve handling of multiple documents and larger knowledge bases.
-- Deploy the application for public demonstration.
+Expected result: The application returns the 75% attendance requirement and displays relevant source text with its page number.
 
-## Security and Privacy
+**Unsupported question example**
 
-- Store API credentials in environment variables.
-- Exclude `.env`, virtual environments, and generated files using `.gitignore`.
-- Do not upload private, confidential, or restricted college documents without permission.
-- Review uploaded documents before using them with an external LLM service.
+Question: *What is the monthly salary of the college principal?*
+
+Expected result:
+
+> I could not find the answer in the provided PDF.
+
+These tests demonstrate basic document retrieval and unsupported-question handling. They do not guarantee correct answers for every PDF or question.
+
+## 🔐 Security and Privacy
+
+- Store the Gemini API key in an environment variable.
+- Keep `.env` out of version control.
+- Do not upload confidential or restricted documents to a public demo.
+- The current implementation stores uploaded documents and vector stores in memory. They are not persistent and may be lost when the backend restarts.
+- Anyone who can access the public demo may be able to use its exposed functionality. Avoid uploading sensitive information.
+
+## ⚠️ Current Limitations
+
+- Scanned PDFs may require OCR, which is not currently implemented.
+- Retrieval quality depends on PDF text extraction, chunking, embeddings, and similarity search.
+- The current embedding implementation makes individual API calls for document chunks, which can increase processing time and encounter API rate limits on larger PDFs.
+- Documents are held in backend memory rather than persistent storage.
+- Free hosting instances may sleep when inactive, causing delays on the first request.
+- Unsupported-question handling relies on the retrieved context and model instructions; it is not a formal guarantee against hallucinations.
+- Gemini API availability, quotas, and usage costs depend on the configured account and model access.
+
+## 🔮 Future Improvements
+
+- Add persistent document and vector storage.
+- Batch embedding requests to improve document-processing efficiency.
+- Add OCR support for scanned PDFs.
+- Improve retrieval confidence checks and evaluation.
+- Add authentication and per-user document isolation.
+- Add automated tests and structured logging.
+- Improve handling of API timeouts, rate limits, and service failures.
+
 
