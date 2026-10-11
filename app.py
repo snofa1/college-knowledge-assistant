@@ -1,7 +1,7 @@
 import requests
 import streamlit as st
 
-API_URL = "http://127.0.0.1:8000"
+API_URL = "https://college-knowledge-assistant-g4hz.onrender.com"
 
 st.set_page_config(
     page_title="PDF RAG Assistant",
@@ -40,7 +40,9 @@ if uploaded_file is not None:
                             uploaded_file.getvalue(),
                             "application/pdf"
                         )
-                    }
+                    },
+                    timeout=180
+
                 )
 
                 if response.status_code == 200:
@@ -92,7 +94,8 @@ if st.session_state.document_id:
                             "document_id": st.session_state.document_id,
                             "question": question,
                             "top_k": 3
-                        }
+                        },
+                        timeout=120
                     )
 
                     if response.status_code == 200:
