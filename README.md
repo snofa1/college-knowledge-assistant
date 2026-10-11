@@ -1,4 +1,5 @@
 # College Knowledge Assistant — RAG-Based PDF Question Answering
+https://college-knowledge-assistant-1-74hg.onrender.com- URL
 
 A Retrieval-Augmented Generation (RAG) application that allows users to ask questions about college documents in natural language and receive answers grounded in the content of uploaded PDFs.
 
