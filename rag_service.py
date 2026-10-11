@@ -9,7 +9,8 @@ from google.genai import errors
 
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.embeddings import Embeddings
+from google.genai import types
 from langchain_community.vectorstores import FAISS
 
 
@@ -33,16 +34,41 @@ client = genai.Client(api_key=api_key)
 # Embedding Model
 # -----------------------------
 
-embedding_model = None
+class GeminiEmbeddings(Embeddings):
 
-def get_embedding_model():
-    global embedding_model
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        vectors = []
 
-    if embedding_model is None:
-        embedding_model = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        for text in texts:
+            response = client.models.embed_content(
+                model="gemini-embedding-001",
+                contents=text,
+                config=types.EmbedContentConfig(
+                    task_type="RETRIEVAL_DOCUMENT"
+                )
+            )
+
+            vectors.append(response.embeddings[0].values)
+
+        return vectors
+
+    def embed_query(self, text: str) -> list[float]:
+        response = client.models.embed_content(
+            model="gemini-embedding-001",
+            contents=text,
+            config=types.EmbedContentConfig(
+                task_type="RETRIEVAL_QUERY"
+            )
         )
 
+        return response.embeddings[0].values
+
+
+# Initialize Gemini embeddings
+embedding_model = GeminiEmbeddings()
+
+
+def get_embedding_model():
     return embedding_model
 
 # -----------------------------
